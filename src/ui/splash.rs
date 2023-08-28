@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fs::File;
 
-use winit::EventsLoop;
+use winit::event_loop::EventLoop;
 use image::{DynamicImage};
 
 use minifb::{Scale, Window, WindowOptions};
@@ -232,11 +232,11 @@ impl Splash {
 
     #[cfg(not(target_os = "macos"))]
     fn get_screen_size() -> (i32, i32, f64, f64, String) {
-        let events_loop = EventsLoop::new();
-        let monitor = events_loop.get_primary_monitor();
-        let factor = monitor.get_hidpi_factor();
-        let width = monitor.get_dimensions().width as i32;
-        let height = monitor.get_dimensions().height as i32;
+        let events_loop = EventLoop::new();
+        let monitor = events_loop.primary_monitor().unwrap();
+        let factor = monitor.scale_factor();
+        let width = monitor.size().width as i32;
+        let height = monitor.size().height as i32;
         let (factor, dpi) = Splash::map_scale(factor);
 
         return (width, height, factor, factor, dpi);
@@ -245,12 +245,12 @@ impl Splash {
     #[cfg(target_os = "macos")]
     fn get_screen_size() -> (i32, i32, f64, f64, String) {
         let events_loop = EventsLoop::new();
-        let monitor = events_loop.get_primary_monitor();
-        let factor = monitor.get_hidpi_factor();
+        let monitor = events_loop.primary_monitor().unwrap();
+        let factor = monitor.scale_factor();
 
         // Dimensions returned by winit are converted to physical size,
         // therefore we need to convert them back to logical size
-        let dimensions = monitor.get_dimensions().to_logical(factor);
+        let dimensions = monitor.size().to_logical(factor);
         let width = dimensions.width as i32;
         let height = dimensions.height as i32;
 
@@ -379,7 +379,7 @@ impl Splash {
                 if w > 0.0 && h > 0.0 {
                     let mut pb = PathBuilder::new();
                     pb.rect(x as f32, y as f32, w as f32, h as f32);
-                    let ts = Transform::identity().post_translate(vec2(-x as f32, -y as f32)).inverse().unwrap();
+                    let ts = Transform::identity().then_translate(vec2(-x as f32, -y as f32)).inverse().unwrap();
 
                     let source = Source::Image(*img,
                                                ExtendMode::Pad,

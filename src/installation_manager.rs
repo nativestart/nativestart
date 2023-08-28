@@ -185,7 +185,7 @@ impl InstallationManager {
 
     pub fn unlock_files(&self, files: Vec<FlockLock<File>>) -> Result<()> {
         for file in files {
-            file.unlock_no_result();
+            file.unlock_no_err_result();
         }
         return Ok(());
     }

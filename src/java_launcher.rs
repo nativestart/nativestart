@@ -17,9 +17,15 @@ impl JavaLauncher {
         let installation_manager = InstallationManager::new(application_name)?;
 
         let log_file = installation_manager.get_log_file()?;
+        let mut builder = ConfigBuilder::new();
+        let config = if builder.set_time_offset_to_local().is_ok() {
+            builder.set_time_offset_to_local().unwrap().build()
+        } else {
+            builder.build()
+        };
         CombinedLogger::init(
             vec![
-                WriteLogger::new(LevelFilter::Debug, Config::default(), log_file)
+                WriteLogger::new(LevelFilter::Debug, config, log_file)
             ]
         ).chain_err(|| ErrorKind::StorageError(format!("Could not create logger")))?;
 

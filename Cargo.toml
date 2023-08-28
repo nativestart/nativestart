@@ -2,56 +2,53 @@
 name = "nativestart"
 version = "1.0.0"
 authors = ["Jonas Bamberger <jonas.bamberger@gmail.com>", "Stefan Wismer <stefan@wismer.xyz>"]
-edition = "2018"
+edition = "2021"
 
 [features]
-#default = ["check-signature"]
-check-signature = ["ring", "hex"]
-checksum-blake3 = ["blake3"]
+check-signature = ["dep:ring", "dep:hex"]
+checksum-blake3 = ["dep:blake3"]
 
 [dependencies]
-log = { version = "0.4.14", features = ["max_level_debug", "release_max_level_info"] }
-simplelog = "0.9.0"
+log = { version = "0.4.17", features = ["max_level_debug", "release_max_level_info"] }
+simplelog = { version = "0.12.1", default-features = false, features = ["local-offset"] }
 error-chain = "0.12.4"
 
 
 # downloading and file handling
-attohttpc = "0.17.0"
-progress-streams = "1.0.0"
+attohttpc = "0.25.0"
+progress-streams = "1.1.0"
 
-serde = "1.0.123"
-serde_json = "1.0.61"
-serde_derive = "1.0.123"
-ring = { version = "0.16.19", optional = true }
-hex = { version = "0.4.2", optional = true }
+serde = "1.0.160"
+serde_json = "1.0.96"
+serde_derive = "1.0.160"
+ring = { version = "0.16.20", optional = true }
+hex = { version = "0.4.3", optional = true }
 
-dirs = "3.0"
-walkdir = "2.3.1"
+dirs = "5.0.0"
+walkdir = "2.3.3"
 tar = "0.4"
-xz2 = "0.1.6"
-cluFlock = "1.2.5"
-sha2 = "0.9.3"
-blake3 = { version = "0.1.2", optional = true }
+xz2 = "0.1.7"
+cluFlock = "1.2.7"
+sha2 = "0.10.6"
+blake3 = { version = "1.4.1", optional = true }
 
 
 # UI
-winit = "0.18.0"
-msgbox = "0.6.0"
-# window size fix based on minifb 0.19.3
-minifb = { git = "https://github.com/swismer/rust_minifb.git", branch = "master" }
-# use raqote 0.8.0 + first commit that updated to png 0.16 to reduce binary size
-raqote = { git = "https://github.com/jrmuizel/raqote.git", rev = "8e770c3ce2b060884b42d57e1c35a19fd6db1bb6" }
-font-kit = "0.7.1"
-euclid = "0.20.14"
+winit = "0.28.3"
+msgbox = "0.7.0"
+minifb = "0.24.0"
+raqote = "0.8.2"
+font-kit = "0.11.0"
+euclid = "0.22.9"
 meval = "0.2.0"
-send_wrapper = "0.5.0"
+send_wrapper = "0.6.0"
 
 # JVM
 dlopen="0.1.8"
 jni-sys = "0.3.0"
 
 [dependencies.image]
-version = "0.23.0"
+version = "0.24.6"
 default-features = false
 features = ["png"]
 
@@ -78,3 +75,4 @@ winapi = { version = "0.3", features = [ "winnt" ] }
 opt-level = 'z'     # optimize for binary size
 lto = true          # activate link time optimization to reduce binary size
 codegen-units = 1   # disable parallel compiling to enable max optimizations
+strip = true        # Automatically strip symbols from the binary
