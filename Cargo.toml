@@ -44,7 +44,7 @@ meval = "0.2.0"
 send_wrapper = "0.6.0"
 
 # JVM
-dlopen="0.1.8"
+dlopen = "0.1.8"
 jni-sys = "0.3.0"
 
 [dependencies.image]
@@ -55,21 +55,21 @@ features = ["png"]
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "0.6.3"
 cocoa = "0.18.5"
-dispatch= { git = "https://github.com/jgh-/rust-dispatch", branch = "master" }
+dispatch = { git = "https://github.com/jgh-/rust-dispatch", branch = "master" }
 
 [target.'cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))'.dependencies]
-openssl = {version = "0.10.45"}
+openssl = { version = "0.10.45" }
 
 [dev-dependencies]
 tempfile = "3.2.0"
 
 [target.'cfg(target_os = "macos")'.build-dependencies]
 tempfile = "3.0.5"
-fs_extra ="1.1.0"
+fs_extra = "1.1.0"
 
 [target.'cfg(target_os="windows")'.build-dependencies]
 winres = "0.1.11"
-winapi = { version = "0.3", features = [ "winnt" ] }
+winapi = { version = "0.3", features = ["winnt"] }
 
 [profile.release]
 opt-level = 'z'     # optimize for binary size
