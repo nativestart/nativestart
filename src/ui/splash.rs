@@ -118,7 +118,7 @@ impl Splash {
         let mut exit_loop = false;
         window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
         loop {
-            draw_context.placeholders.insert(String::from("status"), String::from(status.clone()));
+            draw_context.placeholders.insert(String::from("status"), String::from(status));
             for tokens in &splash.background {
                 draw_context = Splash::execute_command(tokens, draw_context);
             }
@@ -244,15 +244,17 @@ impl Splash {
 
     #[cfg(target_os = "macos")]
     fn get_screen_size() -> (i32, i32, f64, f64, String) {
+        use winit::dpi::LogicalSize;
+
         let events_loop = EventLoop::new();
         let monitor = events_loop.primary_monitor().unwrap();
         let factor = monitor.scale_factor();
 
         // Dimensions returned by winit are converted to physical size,
         // therefore we need to convert them back to logical size
-        let dimensions = monitor.size().to_logical(factor);
-        let width = dimensions.width as i32;
-        let height = dimensions.height as i32;
+        let dimensions: LogicalSize<i32> = monitor.size().to_logical(factor);
+        let width = dimensions.width;
+        let height = dimensions.height;
 
         let (factor, dpi) = Splash::map_scale(factor);
 
