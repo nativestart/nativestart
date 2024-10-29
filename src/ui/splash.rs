@@ -180,7 +180,7 @@ impl Splash {
     }
 
     #[cfg(target_os = "macos")]
-    fn await_termination(rx: Receiver<Message>, window: Window) {
+    fn await_termination(app_name: &'static str, rx: Receiver<Message>, window: Window) {
         use std::thread;
         use std::process::exit;
         use send_wrapper::SendWrapper;
@@ -201,7 +201,7 @@ impl Splash {
                 },
                 Ok(Message::Error(val)) => {
                     Queue::main().sync_exec(move || {
-                        crate::show_error_message(val.clone(), true);
+                        crate::show_error_message(app_name, val.clone(), true);
                     });
                 },
                 Ok(Message::ApplicationTerminated) | Err(_) => {
@@ -214,7 +214,7 @@ impl Splash {
                 match rx.recv() {
                     Ok(Message::Error(val)) => {
                         Queue::main().sync_exec(move || {
-                            crate::show_error_message(val.clone(), true);
+                            crate::show_error_message(app_name, val.clone(), true);
                         });
                     },
                     Ok(Message::ApplicationTerminated) | Err(_) => {
@@ -244,7 +244,7 @@ impl Splash {
 
     #[cfg(target_os = "macos")]
     fn get_screen_size() -> (i32, i32, f64, f64, String) {
-        let events_loop = EventsLoop::new();
+        let events_loop = EventLoop::new();
         let monitor = events_loop.primary_monitor().unwrap();
         let factor = monitor.scale_factor();
 
