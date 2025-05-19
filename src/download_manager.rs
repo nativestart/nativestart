@@ -58,7 +58,7 @@ impl DownloadManager {
                 });
 
                 // extract data stream to target location
-                let stream = xz2::read::XzDecoder::new(reader);
+                let stream = zstd::Decoder::new(reader)?;
                 let mut archive = Archive::new(stream);
                 archive.unpack(&path)
                     .chain_err(|| ErrorKind::StorageError(format!("Could not unpack compressed file {:?}", &path)))?;

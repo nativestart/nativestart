@@ -59,7 +59,7 @@ image splash_progress_border_${dpi}.png 0 0
 image splash_progress_filled_${dpi}.png 0 0 6+${progress}*500 300-6
 ````
 
-All resources (images and fonts) and the descriptor (a file called `splash`) need to be packed as tar.xz archive.
+All resources (images and fonts) and the descriptor (a file called `splash`) need to be packed as tar.zstd archive.
 
 ### Hiding Splash
 By default, the splash screen gets hidden, when the Java application starts. For applications that need some time until the UI is ready, it is possible to add a static method `public static void awaitUI()` in the same class as the `main` method. If it exists, this method is called by NativeStart shortly after the `main` method and the splash screen only gets hidden once this method returns.
