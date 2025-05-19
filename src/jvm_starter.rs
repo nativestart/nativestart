@@ -47,7 +47,7 @@ impl JvmStarter {
             env::set_current_dir(&installation_root)
                 .chain_err(|| ErrorKind::JavaExecutionError(format!("Could not change to installation directory {:?}", &installation_root)))?;
 
-            type CreateJavaVMFunction = unsafe extern fn(pvm: *mut *mut JavaVM, penv: *mut *mut c_void, args: *mut c_void) -> jint;
+            type CreateJavaVMFunction = unsafe extern "C" fn(pvm: *mut *mut JavaVM, penv: *mut *mut c_void, args: *mut c_void) -> jint;
             let create_java_vm = lib
                 .symbol::<CreateJavaVMFunction>("JNI_CreateJavaVM")
                 .chain_err(|| ErrorKind::JavaExecutionError(format!("failed to load 'JNI_CreateJavaVM' from JVM library")))?;
@@ -59,12 +59,13 @@ impl JvmStarter {
                 &mut jvm_env as *mut *mut JNIEnv as *mut *mut c_void,
                 &vm_args as *const _ as _,
             );
+            let native_interface = (**jvm_env).v9;
 
             let method_arguments = JvmStarter::build_arguments(jvm_env);
 
-            let class: jclass = (**jvm_env).FindClass.unwrap()(jvm_env as _, c_str(descriptor.main_class.as_str()));
+            let class: jclass = (native_interface.FindClass)(jvm_env as _, c_str(descriptor.main_class.as_str()));
 
-            let method_id: jmethodID = (**jvm_env).GetStaticMethodID.unwrap()(jvm_env as _, class, c_str("main"), c_str("([Ljava/lang/String;)V"));
+            let method_id: jmethodID = (native_interface.GetStaticMethodID)(jvm_env as _, class, c_str("main"), c_str("([Ljava/lang/String;)V"));
 
             let mut arguments = Vec::new();
             arguments.push(method_arguments);
@@ -80,24 +81,24 @@ impl JvmStarter {
                     name: c_str("await UI"),
                     group: null_mut(),
                 };
-                (**vm).AttachCurrentThread.unwrap()(
+                ((**vm).v1_4.AttachCurrentThread)(
                     vm as *mut JavaVM,
                     &mut jvm_env as *mut *mut JNIEnv as *mut *mut c_void,
                     &thr_args as *const _ as _,
                 );
-                let class: jclass = (**jvm_env).FindClass.unwrap()(jvm_env as _, c_str(main_class.as_str()));
-                let method_id: jmethodID = (**jvm_env).GetStaticMethodID.unwrap()(jvm_env as _, class, c_str("awaitUI"), c_str("()V"));
+                let class: jclass = (native_interface.FindClass)(jvm_env as _, c_str(main_class.as_str()));
+                let method_id: jmethodID = (native_interface.GetStaticMethodID)(jvm_env as _, class, c_str("awaitUI"), c_str("()V"));
                 if !eq(method_id, null_mut()) {
                     debug!("awaitUI() found in Java application. Calling it to determine when to hide splash screen");
-                    (**jvm_env).CallStaticVoidMethodA.unwrap()(jvm_env as _, class, method_id, Vec::new().as_ptr());
+                    (native_interface.CallStaticVoidMethodA)(jvm_env as _, class, method_id, Vec::new().as_ptr());
                 } else {
                     debug!("awaitUI() not found in Java application. Hide splash screen immediately");
                 }
-                (**vm).DetachCurrentThread.unwrap()(*vm as *mut JavaVM);
+                ((**vm).v1_4.DetachCurrentThread)(*vm as *mut JavaVM);
                 ui_clone.application_visible();
             });
 
-            (**jvm_env).CallStaticVoidMethodA.unwrap()(jvm_env as _, class, method_id, arguments.as_ptr());
+            (native_interface.CallStaticVoidMethodA)(jvm_env as _, class, method_id, arguments.as_ptr());
         }
 
         ui.application_terminated();
@@ -105,13 +106,14 @@ impl JvmStarter {
     }
 
     unsafe fn build_arguments<'a>(jvm_env: *mut jni_sys::JNIEnv) -> jni_sys::jvalue {
+        let native_interface = (**jvm_env).v9;
         // find String class
-        let class: jclass = (**jvm_env).FindClass.unwrap()(jvm_env as _, c_str("java/lang/String"));
+        let class: jclass = (native_interface.FindClass)(jvm_env as _, c_str("java/lang/String"));
 
         let args: Vec<String> = env::args().collect();
 
         // create new java string array instance with the same length as the arguments vector
-        let application_arguments: jobjectArray = (**jvm_env).NewObjectArray.unwrap()(jvm_env as _, args.len() as i32, class, null_mut());
+        let application_arguments: jobjectArray = (native_interface.NewObjectArray)(jvm_env as _, args.len() as i32, class, null_mut());
 
         for i in 0..args.len() {
 
@@ -119,10 +121,10 @@ impl JvmStarter {
             let argument: &String = &args[i];
 
             // create new java string object
-            let argument: jobject = (**jvm_env).NewStringUTF.unwrap()(jvm_env as _, c_str(argument.as_str()));
+            let argument: jobject = (native_interface.NewStringUTF)(jvm_env as _, c_str(argument.as_str()));
 
             // set object on array
-            (**jvm_env).SetObjectArrayElement.unwrap()(jvm_env as _, application_arguments, i as _, argument);
+            (native_interface.SetObjectArrayElement)(jvm_env as _, application_arguments, i as _, argument);
         }
 
         return jvalue {

@@ -116,7 +116,7 @@ impl Splash {
         let mut cur_progress: Option<Arc<AtomicUsize>> = None;
         let mut status = "";
         let mut exit_loop = false;
-        window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+        window.set_target_fps(60);
         loop {
             draw_context.placeholders.insert(String::from("status"), String::from(status));
             for tokens in &splash.background {

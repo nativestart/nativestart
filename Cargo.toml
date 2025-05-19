@@ -15,16 +15,16 @@ error-chain = "0.12.4"
 
 
 # downloading and file handling
-attohttpc = "0.25.0"
+attohttpc = "0.29.2"
 progress-streams = "1.1.0"
 
 serde = "1.0.160"
 serde_json = "1.0.96"
 serde_derive = "1.0.160"
-ring = { version = "0.16.20", optional = true }
+ring = { version = "0.17.14", optional = true }
 hex = { version = "0.4.3", optional = true }
 
-dirs = "5.0.0"
+dirs = "6.0.0"
 walkdir = "2.3.3"
 tar = "0.4"
 zstd = "0.13"
@@ -36,19 +36,19 @@ blake3 = { version = "1.4.1", optional = true }
 # UI
 winit = "0.28.3"
 msgbox = "0.7.0"
-minifb = "0.24.0"
+minifb = "0.28.0"
 raqote = "0.8.2"
-font-kit = "0.11.0"
+font-kit = "0.14.2"
 euclid = "0.22.9"
 meval = "0.2.0"
 send_wrapper = "0.6.0"
 
 # JVM
 dlopen = "0.1.8"
-jni-sys = "0.3.0"
+jni-sys = "0.4.0"
 
 [dependencies.image]
-version = "0.24.6"
+version = "0.25.6"
 default-features = false
 features = ["png"]
 
