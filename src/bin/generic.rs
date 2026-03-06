@@ -13,6 +13,9 @@ const APPLICATION_DESCRIPTOR_URL: &str = "APPLICATION_DESCRIPTOR_URL            
 const APPLICATION_PUBLIC_KEY: [u8; 32] = [b'$', b'R', b'E', b'P', b'L', b'A', b'C', b'E', b'_', b'A', b'P', b'P', b'L', b'I', b'C', b'A', b'T', b'I', b'O', b'N', b'_', b'P', b'U', b'B', b'L', b'I', b'C', b'_', b'K', b'E', b'Y', b'$'];
 
 fn main() {
+    #[cfg(target_os="windows")]
+    attach_parent_console();
+
     let application_name = APPLICATION_NAME.trim_end();
     let application_descriptor_url = String::from(APPLICATION_DESCRIPTOR_URL)
         .trim()
@@ -24,4 +27,10 @@ fn main() {
 
     #[cfg(not(feature = "check-signature"))]
     nativestart::start(application_name, application_descriptor_url);
+}
+
+#[cfg(target_os="windows")]
+fn attach_parent_console() {
+    use windows::Win32::System::Console::*;
+    let _ = unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
 }
