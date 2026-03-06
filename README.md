@@ -9,7 +9,7 @@ Distribute your JVM desktop app by providing a small executable that will downlo
 - Single, small executable (no java process visible)
 - No prerequisites for the users (no JVM, no WebStart)
 - Automatic application and JVM download and updates built-in by design
-- JSON based application descriptor
+- TOML based application descriptor
 - DSL for splash screens
 - BLAKE-3 digests to detect modifications on installed files or pending updates
 - Optional Ed25519 key integrated in executable. Only correctly signed application descriptors will be started.
@@ -31,7 +31,7 @@ The commands have parameters, which can use arithmetic expressions and variables
   - contains `mdpi` if screen zoom factor is smaller than 1.25. Coordinates get multiplied by 1.0
   - contains `hdpi` if screen zoom factor is between 1.25 and 1.75 (exclusive). Coordinates get multiplied by 1.5
   - contains `xhdpi` if screen zoom factor is grater than 1.75. Coordinates get multiplied by 2.0
-- `version`: The version of the application as defined int the JSON descriptor
+- `version`: The version of the application as defined int the TOML descriptor
 - `progress`: The download progress as value between 0 and 1
 
 Commands:

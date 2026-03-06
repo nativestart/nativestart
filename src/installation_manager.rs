@@ -18,7 +18,7 @@ use cluFlock::{FlockLock, SharedFlock};
 use rayon::prelude::IntoParallelIterator;
 use crate::installation_manager::CheckResult::{NotOk, OkLocked};
 
-const DESCRIPTOR_FILE_NAME: &str = "app.json";
+const DESCRIPTOR_FILE_NAME: &str = "app.toml";
 const LOG_FILE_NAME: &str = "launcher.log";
 const BACKUP_DIR: &str = ".launcher.backup";
 
