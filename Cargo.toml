@@ -43,8 +43,7 @@ meval = "0.2.0"
 send_wrapper = "0.6.0"
 
 # JVM
-dlopen = "0.1.8"
-jni-sys = "0.4.0"
+jni-simple = { version = "0.3.2", features = ["loadjvm"] }
 
 [dependencies.image]
 version = "0.25.6"
