@@ -7,22 +7,24 @@ use crate::errors::*;
 use ring::signature;
 
 #[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct ApplicationDescriptor {
     pub name: String,
     pub version: String,
     pub signature: Option<String>,
     pub splash: ApplicationArtifact,
+    #[serde(rename="jvm")]
     pub jvm_params: JvmParameters,
+    #[serde(rename="artifact")]
     pub artifacts: Vec<ApplicationArtifact>,
+    #[serde(rename="unmanaged")]
     pub unmanaged_paths: Option<Vec<String>>
 }
 
 impl ApplicationDescriptor {
     pub fn parse(content: &str, public_key: Option<[u8; 32]>) -> Result<ApplicationDescriptor> {
-        let descriptor: Result<ApplicationDescriptor> = serde_json::from_str(&content).map_err(|e| {
-            error!("JSON is invalid:\n{}", content);
-            ErrorKind::InvalidJSON(e.to_string()).into()
+        let descriptor: Result<ApplicationDescriptor> = toml::from_str(&content).map_err(|e| {
+            error!("Descriptor is invalid:\n{}", content);
+            ErrorKind::InvalidDescriptor(e.to_string()).into()
         });
 
         // check signature if required
@@ -90,17 +92,18 @@ impl ApplicationDescriptor {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct JvmParameters {
+    #[serde(rename="path")]
     pub jvm_path: String,
+    #[serde(rename="library")]
     pub jvm_library: String,
+    #[serde(rename="main")]
     pub main_class: String,
     pub options: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
 #[derive(Clone)]
-#[serde(rename_all = "camelCase")]
 pub struct ApplicationArtifact {
     pub url: String,
     pub size: u64,

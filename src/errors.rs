@@ -4,9 +4,9 @@ error_chain!{
     }
 
     errors {
-        InvalidJSON(msg: String) {
-            description("invalid JSON")
-            display("Could not parse JSON descriptor: {:}", msg)
+        InvalidDescriptor(msg: String) {
+            description("invalid descriptor")
+            display("Could not parse descriptor: {:}", msg)
         }
         SignatureError(msg: String) {
             description("signature error")
