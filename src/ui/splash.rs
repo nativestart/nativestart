@@ -204,7 +204,7 @@ impl Splash {
                         crate::show_error_message(app_name, val.clone(), true);
                     });
                 },
-                Ok(Message::ApplicationTerminated) | Err(_) => {
+                Ok(Message::ApplicationTerminated) => {
                     exit(0)
                 },
                 Ok(_) => ()

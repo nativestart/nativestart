@@ -11,7 +11,7 @@ Distribute your JVM desktop app by providing a small executable that will downlo
 - Automatic application and JVM download and updates built-in by design
 - JSON based application descriptor
 - DSL for splash screens
-- SHA-256 or BLAKE-3 digests to detect modifications on installed files or pending updates
+- BLAKE-3 digests to detect modifications on installed files or pending updates
 - Optional Ed25519 key integrated in executable. Only correctly signed application descriptors will be started.
 
 ### Splash DSL

@@ -123,6 +123,7 @@ impl AsRef<Path> for ApplicationArtifact {
 
 
 #[cfg(test)]
+#[cfg(feature = "check-signature")]
 mod tests {
     use hex::ToHex;
     use ring::{rand, signature};
@@ -130,7 +131,6 @@ mod tests {
     use super::ApplicationDescriptor;
 
     #[test]
-    #[cfg(feature = "check-signature")]
     fn test_signature_verification() {
         let rng = rand::SystemRandom::new();
         let pkcs8_bytes = signature::Ed25519KeyPair::generate_pkcs8(&rng).unwrap();

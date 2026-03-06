@@ -19,7 +19,6 @@ use crate::ui::Message;
 mod errors;
 mod java_launcher;
 mod ui;
-mod validation;
 mod descriptor;
 mod download_manager;
 mod installation_manager;

@@ -6,7 +6,6 @@ edition = "2021"
 
 [features]
 check-signature = ["dep:ring", "dep:hex"]
-checksum-blake3 = ["dep:blake3"]
 
 [dependencies]
 log = { version = "0.4.17", features = ["max_level_debug", "release_max_level_info"] }
@@ -29,8 +28,8 @@ walkdir = "2.3.3"
 tar = "0.4"
 zstd = "0.13"
 cluFlock = "1.2.7"
-sha2 = "0.10.6"
-blake3 = { version = "1.4.1", optional = true }
+rayon = "1.11"
+blake3 = "1.4.1"
 
 
 # UI
@@ -62,6 +61,8 @@ openssl = { version = "0.10.45" }
 
 [dev-dependencies]
 tempfile = "3.2.0"
+hex = "0.4.3"
+ring = "0.17.14"
 
 [target.'cfg(target_os = "macos")'.build-dependencies]
 tempfile = "3.0.5"

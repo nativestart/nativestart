@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 extern crate dirs;
 
 use std::fs;
@@ -5,7 +7,7 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-
+use blake3::Hasher;
 use log::*;
 
 use crate::errors::*;
@@ -13,7 +15,8 @@ use crate::descriptor::ApplicationArtifact;
 use crate::descriptor::ApplicationDescriptor;
 use walkdir::WalkDir;
 use cluFlock::{FlockLock, SharedFlock};
-use crate::validation::validate;
+use rayon::prelude::IntoParallelIterator;
+use crate::installation_manager::CheckResult::{NotOk, OkLocked};
 
 const DESCRIPTOR_FILE_NAME: &str = "app.json";
 const LOG_FILE_NAME: &str = "launcher.log";
@@ -21,6 +24,11 @@ const BACKUP_DIR: &str = ".launcher.backup";
 
 pub struct InstallationManager {
     root_dir: PathBuf,
+}
+
+pub enum CheckResult {
+    OkLocked(Vec<FlockLock<File>>),
+    NotOk(ApplicationArtifact)
 }
 
 impl InstallationManager {
@@ -65,6 +73,15 @@ impl InstallationManager {
             }
             Err(_) => Option::None
         };
+    }
+
+    pub fn create_unmanaged(&self, descriptor: &ApplicationDescriptor) -> Result<()> {
+        for path in descriptor.unmanaged_paths.as_ref().unwrap_or(&vec![]) {
+            let path = self.get_installation_root().join(path);
+            fs::create_dir_all(&path)
+                .chain_err(|| ErrorKind::StorageError(format!("Could not create directory {:?}", &path)))?;
+        }
+        Ok(())
     }
 
     pub fn delete_unused_files(&self, descriptor: &ApplicationDescriptor) -> Result<()> {
@@ -134,53 +151,115 @@ impl InstallationManager {
         return Ok(entries_to_delete);
     }
 
-    pub fn get_files_to_download(&self, artifacts: &Vec<ApplicationArtifact>) -> Vec<ApplicationArtifact> {
-        let mut result: Vec<ApplicationArtifact> = Vec::new();
+    pub fn restore_backup(&self, artifacts: &Vec<ApplicationArtifact>) {
         for artifact in artifacts {
-            info!("Checking {}", artifact.path);
-
-            self.restore_trash(artifact).unwrap();
-            let path = self.path(artifact);
-
-            if !validate(artifact, path.as_path()) {
-                result.push(artifact.clone());
-            }
+            self.restore_trash(&artifact).unwrap();
         }
-        return result;
     }
 
-    pub fn lock_installation(&self, descriptor: &ApplicationDescriptor) -> Result<Vec<FlockLock<File>>> {
-        let mut paths: Vec<PathBuf> = Vec::new();
+    pub fn check_artifact(&self, artifact: ApplicationArtifact) -> CheckResult {
+        info!("Checking {}", artifact.path);
+        let path = self.path(&artifact);
 
-        for artifact in descriptor.all_artifacts() {
-            let path = self.path(&artifact).clone();
-            if artifact.is_archive() {
-                for entry in WalkDir::new(path.as_path())
-                    .into_iter()
-                    .filter_map(|entry| entry.ok())
-                    .filter(|entry| match entry.metadata() {
-                        Ok(metadata) => metadata.is_file(),
-                        Err(_) => false
-                    }) {
-
-                    paths.push(entry.into_path());
-                }
+        if !path.exists() {
+            NotOk(artifact)
+        } else if self.size(&path) != artifact.size {
+            info!("The size of {} is {}, but should be {}", &artifact.path, self.size(&path), &artifact.size);
+            NotOk(artifact)
+        } else {
+            let files = self.lock(&path);
+            let hash = if path.is_dir() {self.hash_dir(&path, &files)} else {self.hash_file(&path)};
+            let hash_match = hash.as_str().eq(&artifact.checksum);
+            if !hash_match {
+                info!("The hash of {} is {}, but should be {}", &artifact.path, hash, &artifact.checksum);
+                self.unlock(files);
+                NotOk(artifact)
             } else {
-                paths.push(path);
+                let mut locks: Vec<FlockLock<File>> = Vec::new();
+                for file in files {
+                    locks.push(file.1);
+                }
+                OkLocked(locks)
             }
         }
-
-        paths.push(self.path(DESCRIPTOR_FILE_NAME));
-
-        let files = paths.into_iter().map(|path|
-            SharedFlock::wait_lock(File::open(path).unwrap()).unwrap()
-        ).collect();
-
-        return Ok(files);
     }
 
-    pub fn verify_installation(&self, descriptor: &ApplicationDescriptor) -> bool {
-        return self.get_files_to_download(&descriptor.artifacts).is_empty();
+    pub fn check_artifacts(&self, artifacts: &Vec<ApplicationArtifact>) -> Vec<CheckResult> {
+        artifacts.into_par_iter().cloned().map(|artifact| {
+            self.check_artifact(artifact)
+        }).collect()
+    }
+
+    fn size(&self, file_path: &Path) -> u64 {
+        if file_path.is_dir() {
+            WalkDir::new(file_path)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.metadata().ok())
+                .filter(|metadata| metadata.is_file())
+                .fold(0, |acc, m| acc + m.len())
+        } else {
+            fs::metadata(file_path).and_then(|m| Ok(m.len())).unwrap_or(0)
+        }
+    }
+
+    fn lock(&self, file_path: &Path) -> Vec<(PathBuf, FlockLock<File>)> {
+        if file_path.is_dir() {
+            WalkDir::new(file_path)
+                .into_iter()
+                .filter_map(|entry| entry.ok())
+                .filter(|entry| match entry.metadata() {
+                    Ok(metadata) => !metadata.is_dir(),
+                    Err(_) => false
+                })
+                .map(|path|
+                         (path.clone().into_path(), SharedFlock::wait_lock(File::open(path.into_path()).unwrap()).unwrap()))
+                .collect()
+        } else {
+            vec!((file_path.to_path_buf(), SharedFlock::wait_lock(File::open(file_path).unwrap()).unwrap()))
+        }
+    }
+
+    pub fn unlock(&self, files : Vec<(PathBuf, FlockLock<File>)>) {
+        for file in files {
+            file.1.unlock_no_err_result();
+        }
+    }
+
+    fn hash_dir(&self, file_path: &Path, files : &Vec<(PathBuf, FlockLock<File>)>) -> String {
+        let hash_vec : Vec<_> = files.par_iter().filter_map(|(file, _)| {
+            let hash = self.hash_file(file);
+            let path = String::from(file.strip_prefix(file_path).unwrap()
+                .to_str().unwrap()
+                .replace("\\", "/"));
+            Some((path, hash))
+        }).collect();
+
+        let mut hashes = BTreeMap::new();
+        for (path, hash) in hash_vec {
+            hashes.insert(path, hash);
+        }
+        let mut hasher = Hasher::new();
+        for (path, hash) in &hashes {
+            hasher.update(path.as_bytes());
+            hasher.update(b"\t");
+            hasher.update(hash.as_bytes());
+            hasher.update(b"\n");
+        }
+        String::from(hasher.finalize().to_hex().as_str())
+    }
+
+    fn hash_file(&self, file_path: &Path) -> String {
+        debug!("Hashing {:?}", file_path);
+        let mut hasher = Hasher::new();
+        match fs::read_link(file_path) {
+            Ok(target) => hasher.update(target.as_path().to_str().unwrap().as_bytes()),
+            Err(_e) => {
+                hasher.update_reader(File::open(file_path).unwrap()).unwrap()
+            }
+        };
+        String::from(hasher.finalize().to_hex().as_str())
     }
 
     pub fn unlock_files(&self, files: Vec<FlockLock<File>>) -> Result<()> {
@@ -260,9 +339,39 @@ mod tests {
     use crate::descriptor::ApplicationArtifact;
 
     #[test]
+    fn test_size_hash_single_file() {
+        let (temp_dir, installation) = setup();
+        let mut path = temp_dir.keep();
+        path.push("test.jar");
+
+        let mut temporary_file = File::create(&path).unwrap();
+        temporary_file.write_all(b"test").unwrap();
+
+        assert_eq!(4, installation.size(path.as_path()));
+        assert_eq!("4878ca0425c739fa427f7eda20fe845f6b2e46ba5fe2a14df5b1e32f50603215", installation.hash_file(path.as_path()));
+    }
+
+    #[test]
+    fn test_size_hash_directory() {
+        let (temp_dir, installation) = setup();
+        let path = temp_dir.keep();
+        File::create(&path.join("test.jar")).unwrap().write_all(b"test").unwrap();
+        File::create(&path.join("main.jar")).unwrap().write_all(b"main").unwrap();
+        let subdir = path.join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        File::create(&subdir.join("test.txt")).unwrap().write_all(b"sub").unwrap();
+
+        assert_eq!(11, installation.size(path.as_path()));
+        let files = installation.lock(&path);
+        assert_eq!(3, files.len());
+        assert_eq!("a1911db12774eca1371894923dd3870595d52185797e43972e808a901555faa1", installation.hash_dir(path.as_path(), &files));
+        installation.unlock(files);
+    }
+
+    #[test]
     fn test_empty() {
         let (temp_dir, installation) = setup();
-        let path = temp_dir.into_path();
+        let path = temp_dir.keep();
 
         let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &vec![]).unwrap();
 
@@ -272,7 +381,7 @@ mod tests {
     #[test]
     fn test_one_missing_file() {
         let (temp_dir, installation) = setup();
-        let path = temp_dir.into_path();
+        let path = temp_dir.keep();
 
         let mut missing_file = path.clone();
         missing_file.push("missing.file");
@@ -286,7 +395,7 @@ mod tests {
     #[test]
     fn test_one_missing_dir() {
         let (temp_dir, installation) = setup();
-        let path = temp_dir.into_path();
+        let path = temp_dir.keep();
 
         let mut missing_dir = path.clone();
         missing_dir.push("missing_dir/");
@@ -300,7 +409,7 @@ mod tests {
     #[test]
     fn test_one_needless_dir() {
         let (temp_dir, installation) = setup();
-        let path = temp_dir.into_path();
+        let path = temp_dir.keep();
 
         let mut needless_path: PathBuf = path.clone();
         needless_path.push("needless_dir");
@@ -315,7 +424,7 @@ mod tests {
     #[test]
     fn test_one_needless_file() {
         let (temp_dir, installation) = setup();
-        let path = temp_dir.into_path();
+        let path = temp_dir.keep();
 
         let mut needless_path: PathBuf = path.clone();
         needless_path.push("needless.file");
@@ -330,7 +439,7 @@ mod tests {
     #[test]
     fn test_one_needless_file_in_subdir() {
         let (temp_dir, installation) = setup();
-        let path = temp_dir.into_path();
+        let path = temp_dir.keep();
 
         let mut needless_path: PathBuf = path.clone();
         needless_path.push("dir/needless.file");
@@ -350,7 +459,7 @@ mod tests {
     #[test]
     fn test_one_needless_dir_in_subdir() {
         let (temp_dir, installation) = setup();
-        let path = temp_dir.into_path();
+        let path = temp_dir.keep();
 
         let mut needless_path: PathBuf = path.clone();
         needless_path.push("dir/needless_dir");
@@ -410,8 +519,7 @@ mod tests {
             download_size: Some(50),
             size: 123,
         });
-        // trigger restore
-        installation.get_files_to_download(&artifacts);
+        installation.restore_backup(&artifacts);
 
         let mut contents = String::new();
         File::open(&orig).unwrap().read_to_string(&mut contents).unwrap();
