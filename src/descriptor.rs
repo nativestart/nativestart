@@ -11,11 +11,11 @@ pub struct ApplicationDescriptor {
     pub name: String,
     pub version: String,
     pub signature: Option<String>,
-    pub splash: ApplicationArtifact,
+    pub splash: ApplicationComponent,
     #[serde(rename="jvm")]
     pub jvm_params: JvmParameters,
-    #[serde(rename="artifact")]
-    pub artifacts: Vec<ApplicationArtifact>,
+    #[serde(rename="component")]
+    pub components: Vec<ApplicationComponent>,
     #[serde(rename="unmanaged")]
     pub unmanaged_paths: Option<Vec<String>>
 }
@@ -30,8 +30,8 @@ impl ApplicationDescriptor {
         // check signature if required
         match descriptor {
             Ok(desc) => {
-                for artifact in &desc.all_artifacts() {
-                    if artifact.path.contains("..") {
+                for component in &desc.all_components() {
+                    if component.path.contains("..") {
                         panic!("Descriptor defines storage location outside application directory. Please inform author about this security incident!");
                     }
                 }
@@ -50,11 +50,11 @@ impl ApplicationDescriptor {
         }
     }
 
-    pub fn all_artifacts(&self) -> Vec<&ApplicationArtifact> {
-        let mut artifacts = Vec::new();
-        artifacts.extend(&self.artifacts);
-        artifacts.push(&self.splash);
-        return artifacts;
+    pub fn all_components(&self) -> Vec<&ApplicationComponent> {
+        let mut component = Vec::new();
+        component.extend(&self.components);
+        component.push(&self.splash);
+        return component;
     }
 
     #[cfg(not(feature = "check-signature"))]
@@ -104,7 +104,7 @@ pub struct JvmParameters {
 
 #[derive(Deserialize, Debug)]
 #[derive(Clone)]
-pub struct ApplicationArtifact {
+pub struct ApplicationComponent {
     pub url: String,
     pub size: u64,
     pub download_size: Option<u64>,
@@ -112,13 +112,13 @@ pub struct ApplicationArtifact {
     pub path: String,
 }
 
-impl ApplicationArtifact {
+impl ApplicationComponent {
     pub fn is_archive(&self) -> bool {
         self.path.ends_with("/")
     }
 }
 
-impl AsRef<Path> for ApplicationArtifact {
+impl AsRef<Path> for ApplicationComponent {
     fn as_ref(&self) -> &Path {
         return Path::new(&self.path);
     }

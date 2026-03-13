@@ -1,4 +1,4 @@
-use crate::descriptor::ApplicationArtifact;
+use crate::descriptor::ApplicationComponent;
 use crate::download_manager::DownloadManager;
 use crate::errors::*;
 use crate::installation_manager::CheckResult::{NotOk, OkLocked};
@@ -47,10 +47,10 @@ impl JavaLauncher {
         let mut locked_files: Vec<Vec<FlockLock<File>>> = Vec::new();
 
         // download splash screen if required
-        match installation_manager.check_artifact(descriptor.splash.clone()) {
+        match installation_manager.check_component(descriptor.splash.clone()) {
             NotOk(splash) => {
                 download_manager.download_and_store(&vec![splash], &installation_manager, &ui)?;
-                match installation_manager.check_artifact(descriptor.splash.clone()) {
+                match installation_manager.check_component(descriptor.splash.clone()) {
                     NotOk(_) => {
                         bail!("Could not download splash screen. Please try again. If the problem persist, please contact the application author");
                     }
@@ -63,17 +63,17 @@ impl JavaLauncher {
                        installation_manager.get_installation_root().to_path_buf().join(descriptor.splash.path.clone()));
 
         info!("Preparing {} version {}", descriptor.name, descriptor.version);
-        installation_manager.restore_backup(&descriptor.artifacts);
+        installation_manager.restore_backup(&descriptor.components);
 
-        let mut files_to_download: Vec<ApplicationArtifact> = Vec::new();
-        for check_result in installation_manager.check_artifacts(&descriptor.artifacts) {
+        let mut files_to_download: Vec<ApplicationComponent> = Vec::new();
+        for check_result in installation_manager.check_components(&descriptor.components) {
             match check_result {
-                NotOk(artifact) => files_to_download.push(artifact),
+                NotOk(component) => files_to_download.push(component),
                 OkLocked(files) => locked_files.push(files)
             }
         }
         download_manager.download_and_store(&files_to_download, &installation_manager, &ui)?;
-        for result in installation_manager.check_artifacts(&files_to_download) {
+        for result in installation_manager.check_components(&files_to_download) {
             match result {
                 NotOk(_) => {
                     bail!("Error during installation verification. Please try again. If the problem persist, please contact the application author");

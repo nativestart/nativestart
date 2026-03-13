@@ -14,15 +14,15 @@ error_chain!{
         }
         DownloadError(msg: String) {
             description("download error")
-            display("Error while downloading application artifacts: {:}", msg)
+            display("Error while downloading application components: {:}", msg)
         }
         StorageError(msg: String) {
             description("storage error")
-            display("Error while storing application artifacts: {:}", msg)
+            display("Error while storing application components: {:}", msg)
         }
         ValidationError(msg: String) {
             description("validation error")
-            display("Error while validating application artifacts: {:}", msg)
+            display("Error while validating application components: {:}", msg)
         }
         SplashError(msg: String) {
             description("splash error")

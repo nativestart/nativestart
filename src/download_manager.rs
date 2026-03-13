@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tar::Archive;
 
 use crate::errors::*;
-use crate::descriptor::ApplicationArtifact;
+use crate::descriptor::ApplicationComponent;
 use crate::UserInterface;
 use crate::installation_manager::InstallationManager;
 
@@ -32,23 +32,23 @@ impl DownloadManager {
         }
     }
 
-    pub fn download_and_store(&self, artifacts: &Vec<ApplicationArtifact>, installation: &InstallationManager, ui: &UserInterface) -> Result<()> {
+    pub fn download_and_store(&self, components: &Vec<ApplicationComponent>, installation: &InstallationManager, ui: &UserInterface) -> Result<()> {
         let mut downloaded: u64 = 0;
-        let total_size: u64 = artifacts.iter().map(|ref artifact| artifact.download_size.unwrap_or(artifact.size)).sum();
-        info!("Downloading {} artifacts ({} bytes)", artifacts.len(), total_size);
-        for artifact in artifacts {
-            let path = installation.path_for_write(&artifact)?;
+        let total_size: u64 = components.iter().map(|ref component| component.download_size.unwrap_or(component.size)).sum();
+        info!("Downloading {} components ({} bytes)", components.len(), total_size);
+        for component in components {
+            let path = installation.path_for_write(&component)?;
 
-            debug!("Downloading {} to {:?}", artifact.url, path);
+            debug!("Downloading {} to {:?}", component.url, path);
 
-            if artifact.is_archive() {
+            if component.is_archive() {
                 // create empty directory
                 fs::create_dir_all(&path)
                     .chain_err(|| ErrorKind::StorageError(format!("Could not create directory {:?}", &path)))?;
 
                 // prepare HTTP client
-                let res = attohttpc::get(&artifact.url).send()
-                    .chain_err(|| ErrorKind::DownloadError(format!("Could not download file {:?}", &artifact.url)))?;
+                let res = attohttpc::get(&component.url).send()
+                    .chain_err(|| ErrorKind::DownloadError(format!("Could not download file {:?}", &component.url)))?;
 
                 // decorate reader with progress tracking
                 let file_progress = Arc::new(AtomicUsize::new(0));
@@ -70,12 +70,12 @@ impl DownloadManager {
                 let mut file = File::create(&path)
                     .chain_err(|| ErrorKind::StorageError(format!("Could not create file {:?}", &path)))?;
 
-                let mut res = attohttpc::get(&artifact.url).send()
-                    .chain_err(|| ErrorKind::DownloadError(format!("Could not download file {:?}", &artifact.url)))?;
+                let mut res = attohttpc::get(&component.url).send()
+                    .chain_err(|| ErrorKind::DownloadError(format!("Could not download file {:?}", &component.url)))?;
                 self.download(&mut res, &mut file, ui, downloaded, total_size)?;
             }
 
-            downloaded += artifact.download_size.unwrap_or(artifact.size);
+            downloaded += component.download_size.unwrap_or(component.size);
             ui.set_download_progress(downloaded as f64 / total_size as f64);
         }
 
