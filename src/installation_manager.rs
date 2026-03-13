@@ -11,7 +11,7 @@ use blake3::Hasher;
 use log::*;
 
 use crate::errors::*;
-use crate::descriptor::ApplicationArtifact;
+use crate::descriptor::ApplicationComponent;
 use crate::descriptor::ApplicationDescriptor;
 use walkdir::WalkDir;
 use cluFlock::{FlockLock, SharedFlock};
@@ -28,7 +28,7 @@ pub struct InstallationManager {
 
 pub enum CheckResult {
     OkLocked(Vec<FlockLock<File>>),
-    NotOk(ApplicationArtifact)
+    NotOk(ApplicationComponent)
 }
 
 impl InstallationManager {
@@ -85,24 +85,24 @@ impl InstallationManager {
     }
 
     pub fn delete_unused_files(&self, descriptor: &ApplicationDescriptor) -> Result<()> {
-        let mut artifact_paths: Vec<PathBuf> = descriptor.artifacts
+        let mut component_paths: Vec<PathBuf> = descriptor.components
             .iter()
-            .map(|artifact| self.path(artifact))
+            .map(|component| self.path(component))
             .collect();
 
-        // add synthetic artifact path for descriptor and log file to ensure that the file will not be deleted
-        artifact_paths.push(self.path(DESCRIPTOR_FILE_NAME));
-        artifact_paths.push(self.path(LOG_FILE_NAME));
+        // add synthetic component path for descriptor and log file to ensure that the file will not be deleted
+        component_paths.push(self.path(DESCRIPTOR_FILE_NAME));
+        component_paths.push(self.path(LOG_FILE_NAME));
         
-        // manually add artifact path for the splash artifact due it is not included in the main artifacts list
-        artifact_paths.push(self.path(&descriptor.splash));
+        // manually add component path for the splash component due it is not included in the main components list
+        component_paths.push(self.path(&descriptor.splash));
 
         // add unmanaged paths (like plugins or other user managed directories)
         for path in descriptor.unmanaged_paths.as_ref().unwrap_or(&vec![]) {
-            artifact_paths.push(self.path(path));
+            component_paths.push(self.path(path));
         }
 
-        let entries_to_delete: Vec<PathBuf> = self.get_paths_to_delete(self.get_installation_root().as_path(), &artifact_paths)?;
+        let entries_to_delete: Vec<PathBuf> = self.get_paths_to_delete(self.get_installation_root().as_path(), &component_paths)?;
 
         for entry_path in entries_to_delete {
             if entry_path.exists() {
@@ -118,7 +118,7 @@ impl InstallationManager {
         return Ok(());
     }
 
-    fn get_paths_to_delete(&self, root: &Path, artifact_paths: &Vec<PathBuf>) -> Result<Vec<PathBuf>> {
+    fn get_paths_to_delete(&self, root: &Path, component_paths: &Vec<PathBuf>) -> Result<Vec<PathBuf>> {
         let mut entries_to_delete: Vec<PathBuf> = Vec::new();
 
         let dir = fs::read_dir(root)
@@ -130,12 +130,12 @@ impl InstallationManager {
             let mut exact_match = false;
             let mut partial_match = false;
 
-            for artifact_path in artifact_paths.iter() {
-                if artifact_path.eq(&entry_path.to_path_buf()) {
+            for component_path in component_paths.iter() {
+                if component_path.eq(&entry_path.to_path_buf()) {
                     exact_match = true;
                     break;
                 }
-                if artifact_path.starts_with(&entry_path) {
+                if component_path.starts_with(&entry_path) {
                     partial_match = true;
                     break;
                 }
@@ -144,36 +144,36 @@ impl InstallationManager {
             if !exact_match && !partial_match {
                 entries_to_delete.push(entry_path.to_path_buf());
             } else if !exact_match {
-                entries_to_delete.append(&mut self.get_paths_to_delete(entry_path.as_path(), artifact_paths)?);
+                entries_to_delete.append(&mut self.get_paths_to_delete(entry_path.as_path(), component_paths)?);
             }
         }
 
         return Ok(entries_to_delete);
     }
 
-    pub fn restore_backup(&self, artifacts: &Vec<ApplicationArtifact>) {
-        for artifact in artifacts {
-            self.restore_trash(&artifact).unwrap();
+    pub fn restore_backup(&self, components: &Vec<ApplicationComponent>) {
+        for component in components {
+            self.restore_trash(&component).unwrap();
         }
     }
 
-    pub fn check_artifact(&self, artifact: ApplicationArtifact) -> CheckResult {
-        info!("Checking {}", artifact.path);
-        let path = self.path(&artifact);
+    pub fn check_component(&self, component: ApplicationComponent) -> CheckResult {
+        info!("Checking {}", component.path);
+        let path = self.path(&component);
 
         if !path.exists() {
-            NotOk(artifact)
-        } else if self.size(&path) != artifact.size {
-            info!("The size of {} is {}, but should be {}", &artifact.path, self.size(&path), &artifact.size);
-            NotOk(artifact)
+            NotOk(component)
+        } else if self.size(&path) != component.size {
+            info!("The size of {} is {}, but should be {}", &component.path, self.size(&path), &component.size);
+            NotOk(component)
         } else {
             let files = self.lock(&path);
             let hash = if path.is_dir() {self.hash_dir(&path, &files)} else {self.hash_file(&path)};
-            let hash_match = hash.as_str().eq(&artifact.checksum);
+            let hash_match = hash.as_str().eq(&component.checksum);
             if !hash_match {
-                info!("The hash of {} is {}, but should be {}", &artifact.path, hash, &artifact.checksum);
+                info!("The hash of {} is {}, but should be {}", &component.path, hash, &component.checksum);
                 self.unlock(files);
-                NotOk(artifact)
+                NotOk(component)
             } else {
                 let mut locks: Vec<FlockLock<File>> = Vec::new();
                 for file in files {
@@ -184,9 +184,9 @@ impl InstallationManager {
         }
     }
 
-    pub fn check_artifacts(&self, artifacts: &Vec<ApplicationArtifact>) -> Vec<CheckResult> {
-        artifacts.into_par_iter().cloned().map(|artifact| {
-            self.check_artifact(artifact)
+    pub fn check_components(&self, components: &Vec<ApplicationComponent>) -> Vec<CheckResult> {
+        components.into_par_iter().cloned().map(|component| {
+            self.check_component(component)
         }).collect()
     }
 
@@ -273,28 +273,28 @@ impl InstallationManager {
         return self.root_dir.clone();
     }
 
-    pub fn path_for_write<P: AsRef<Path>>(&self, artifact: P) -> Result<PathBuf> {
-        self.move_to_trash(&artifact)?;
-        return Ok(self.path(&artifact));
+    pub fn path_for_write<P: AsRef<Path>>(&self, component: P) -> Result<PathBuf> {
+        self.move_to_trash(&component)?;
+        return Ok(self.path(&component));
     }
 
-    fn path<P: AsRef<Path>>(&self, artifact: P) -> PathBuf {
+    fn path<P: AsRef<Path>>(&self, component: P) -> PathBuf {
         let mut path = self.root_dir.clone();
-        path.push(&artifact);
+        path.push(&component);
         return path;
     }
 
-    fn backup_path<P: AsRef<Path>>(&self, artifact: P) -> PathBuf {
+    fn backup_path<P: AsRef<Path>>(&self, component: P) -> PathBuf {
         let mut path = self.root_dir.clone();
         path.push(BACKUP_DIR);
-        path.push(&artifact);
+        path.push(&component);
         return path;
     }
 
-    fn move_to_trash<P: AsRef<Path>>(&self, artifact: P) -> Result<()> {
-        let path = self.path(&artifact);
+    fn move_to_trash<P: AsRef<Path>>(&self, component: P) -> Result<()> {
+        let path = self.path(&component);
         if path.exists() {
-            let backup_path = self.backup_path(&artifact);
+            let backup_path = self.backup_path(&component);
             if backup_path.exists() {
                 if backup_path.is_file() {
                     fs::remove_file(&backup_path)?;
@@ -304,15 +304,15 @@ impl InstallationManager {
             }
             fs::create_dir_all(backup_path.parent().unwrap())
                 .chain_err(|| ErrorKind::StorageError(format!("Could not create backup directory for {:?}", &backup_path)))?;
-            fs::rename(&path, &self.backup_path(&artifact))
+            fs::rename(&path, &self.backup_path(&component))
                 .chain_err(|| ErrorKind::StorageError(format!("Could not backup {:?}", &path)))?;
         }
         return Ok(());
     }
 
-    fn restore_trash<P: AsRef<Path>>(&self, artifact: P) -> Result<()>{
-        let backup_path = self.backup_path(&artifact);
-        let path = self.path(&artifact);
+    fn restore_trash<P: AsRef<Path>>(&self, component: P) -> Result<()>{
+        let backup_path = self.backup_path(&component);
+        let path = self.path(&component);
         if backup_path.exists() {
             if path.exists() {
                 if path.is_file() {
@@ -336,7 +336,7 @@ mod tests {
     use std::fs::File;
     use std::io::{Write, Read};
     use tempfile::TempDir;
-    use crate::descriptor::ApplicationArtifact;
+    use crate::descriptor::ApplicationComponent;
 
     #[test]
     fn test_size_hash_single_file() {
@@ -385,9 +385,9 @@ mod tests {
 
         let mut missing_file = path.clone();
         missing_file.push("missing.file");
-        let artifacts = vec![missing_file];
+        let components = vec![missing_file];
 
-        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &artifacts).unwrap();
+        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &components).unwrap();
 
         assert_eq!(true, entries_to_delete.is_empty());
     }
@@ -399,9 +399,9 @@ mod tests {
 
         let mut missing_dir = path.clone();
         missing_dir.push("missing_dir/");
-        let artifacts = vec![missing_dir];
+        let components = vec![missing_dir];
 
-        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &artifacts).unwrap();
+        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &components).unwrap();
 
         assert_eq!(true, entries_to_delete.is_empty());
     }
@@ -448,9 +448,9 @@ mod tests {
 
         let mut missing_file = path.clone();
         missing_file.push("dir/missing.file");
-        let artifacts = vec![missing_file];
+        let components = vec![missing_file];
 
-        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &artifacts).unwrap();
+        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &components).unwrap();
 
         assert_eq!(false, entries_to_delete.is_empty());
         assert_entries_to_delete(&path, &vec![String::from("dir/needless.file")], &entries_to_delete);
@@ -467,9 +467,9 @@ mod tests {
 
         let mut missing_dir = path.clone();
         missing_dir.push("dir/missing_dir");
-        let artifacts = vec![missing_dir];
+        let components = vec![missing_dir];
 
-        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &artifacts).unwrap();
+        let entries_to_delete = installation.get_paths_to_delete(path.as_path(), &components).unwrap();
 
         assert_eq!(false, entries_to_delete.is_empty());
         assert_entries_to_delete(&path, &vec![String::from("dir/needless_dir")], &entries_to_delete);
@@ -502,24 +502,24 @@ mod tests {
     fn test_backup_restore() {
         let (_, installation) = setup();
 
-        let backup = installation.backup_path("lib/artifact.jar");
+        let backup = installation.backup_path("lib/component.jar");
         fs::create_dir_all(backup.parent().unwrap()).unwrap();
         File::create(&backup).unwrap().write_all("old".as_bytes()).unwrap();
 
-        let orig = installation.path("lib/artifact.jar");
+        let orig = installation.path("lib/component.jar");
         fs::create_dir_all(orig.parent().unwrap()).unwrap();
         File::create(&orig).unwrap().write_all("OK".as_bytes()).unwrap();
 
-        installation.move_to_trash("lib/artifact.jar").unwrap();
+        installation.move_to_trash("lib/component.jar").unwrap();
 
-        let artifacts: Vec<ApplicationArtifact> = vec!(ApplicationArtifact {
-            path: String::from("lib/artifact.jar"),
+        let components: Vec<ApplicationComponent> = vec!(ApplicationComponent {
+            path: String::from("lib/component.jar"),
             url: String::from("http://host/file"),
             checksum: String::from(""),
             download_size: Some(50),
             size: 123,
         });
-        installation.restore_backup(&artifacts);
+        installation.restore_backup(&components);
 
         let mut contents = String::new();
         File::open(&orig).unwrap().read_to_string(&mut contents).unwrap();
