@@ -278,6 +278,15 @@ impl InstallationManager {
         return Ok(self.path(&component));
     }
 
+    pub fn recreate_dir<P: AsRef<Path>>(&self, component: P) -> Result<()> {
+        let path = self.path(&component);
+        if path.exists() {
+            fs::remove_dir_all(&path)?;
+        }
+        fs::create_dir_all(&path)?;
+        return Ok(());
+    }
+
     fn path<P: AsRef<Path>>(&self, component: P) -> PathBuf {
         let mut path = self.root_dir.clone();
         path.push(&component);
@@ -518,6 +527,7 @@ mod tests {
             checksum: String::from(""),
             download_size: Some(50),
             size: 123,
+            cache_path: None,
         });
         installation.restore_backup(&components);
 

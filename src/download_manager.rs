@@ -75,6 +75,12 @@ impl DownloadManager {
                 self.download(&mut res, &mut file, ui, downloaded, total_size)?;
             }
 
+            // re-create cache directory if there is one
+            match &component.cache_path {
+                Some(cache_path) => installation.recreate_dir(cache_path)?,
+                None => {}
+            }
+
             downloaded += component.download_size.unwrap_or(component.size);
             ui.set_download_progress(downloaded as f64 / total_size as f64);
         }
