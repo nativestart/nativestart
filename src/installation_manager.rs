@@ -101,6 +101,16 @@ impl InstallationManager {
         for path in descriptor.unmanaged_paths.as_ref().unwrap_or(&vec![]) {
             component_paths.push(self.path(path));
         }
+        // add cache paths and create them if they do not yet exist
+        for component in &descriptor.components {
+            if component.cache_path.is_some() {
+                let path = self.path(component.cache_path.as_ref().unwrap());
+                if !path.exists() {
+                    fs::create_dir_all(&path)?;
+                }
+                component_paths.push(path);
+            }
+        }
 
         let entries_to_delete: Vec<PathBuf> = self.get_paths_to_delete(self.get_installation_root().as_path(), &component_paths)?;
 
@@ -276,6 +286,15 @@ impl InstallationManager {
     pub fn path_for_write<P: AsRef<Path>>(&self, component: P) -> Result<PathBuf> {
         self.move_to_trash(&component)?;
         return Ok(self.path(&component));
+    }
+
+    pub fn recreate_dir<P: AsRef<Path>>(&self, component: P) -> Result<()> {
+        let path = self.path(&component);
+        if path.exists() {
+            fs::remove_dir_all(&path)?;
+        }
+        fs::create_dir_all(&path)?;
+        return Ok(());
     }
 
     fn path<P: AsRef<Path>>(&self, component: P) -> PathBuf {
@@ -518,6 +537,7 @@ mod tests {
             checksum: String::from(""),
             download_size: Some(50),
             size: 123,
+            cache_path: None,
         });
         installation.restore_backup(&components);
 

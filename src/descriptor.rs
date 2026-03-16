@@ -110,6 +110,7 @@ pub struct ApplicationComponent {
     pub download_size: Option<u64>,
     pub checksum: String,
     pub path: String,
+    pub cache_path: Option<String>,
 }
 
 impl ApplicationComponent {
