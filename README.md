@@ -31,11 +31,11 @@ The commands have parameters, which can use arithmetic expressions and variables
   - contains `mdpi` if screen zoom factor is smaller than 1.25. Coordinates get multiplied by 1.0
   - contains `hdpi` if screen zoom factor is between 1.25 and 1.75 (exclusive). Coordinates get multiplied by 1.5
   - contains `xhdpi` if screen zoom factor is grater than 1.75. Coordinates get multiplied by 2.0
-- `version`: The version of the application as defined int the TOML descriptor
+- `version`: The version of the application as defined in the TOML descriptor
 - `progress`: The download progress as value between 0 and 1
 
 Commands:
-- `image <path> <x> <y> [<w> <h>]` Draw image at given position (width and height are optional)
+- `image <path> <x> <y> [<clip_w> <clip_h> [<src_x> <src_y>]]` Draw image at given position (clipping width and height are optional, source coordinates are optional)
 - `textfont <path>` Use the font stored in the given file (TTF, OTF, etc.)
 - `textsize <size>` Use the given font size
 - `textalign <start|left|end|right|center>` Use the given font alignment
