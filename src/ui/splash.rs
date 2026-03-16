@@ -335,18 +335,28 @@ impl Splash {
                 let y: String;
                 let w: String;
                 let h: String;
-                if tokens.len() == 6 {
+                let src_x: String;
+                let src_y: String;
+                if tokens.len() == 8 {
+                    parse!(tokens, path, x, y, w, h, src_x, src_y);
+                } else if tokens.len() == 6 {
                     parse!(tokens, path, x, y, w, h);
+                    src_x = String::from("0");
+                    src_y = String::from("0");
                 } else {
                     parse!(tokens, path, x, y);
                     w = String::from("-1");
                     h = String::from("-1");
+                    src_x = String::from("0");
+                    src_y = String::from("0");
                 }
                 path = draw_context.eval_text(path);
                 let x = draw_context.eval_num(x) * draw_context.scale;
                 let y = draw_context.eval_num(y) * draw_context.scale;
                 let w = draw_context.eval_num(w) * draw_context.scale;
                 let h = draw_context.eval_num(h) * draw_context.scale;
+                let src_x = draw_context.eval_num(src_x) * draw_context.scale;
+                let src_y = draw_context.eval_num(src_y) * draw_context.scale;
 
                 if !draw_context.images.contains_key(path.as_str()) {
                     let mut path_buffer = draw_context.basedir.clone();
@@ -379,15 +389,20 @@ impl Splash {
                 };
 
                 if w > 0.0 && h > 0.0 {
-                    let mut pb = PathBuilder::new();
-                    pb.rect(x as f32, y as f32, w as f32, h as f32);
-                    let ts = Transform::identity().then_translate(vec2(-x as f32, -y as f32)).inverse().unwrap();
+                    if src_x == 0.0 && src_y == 0.0 {
+                        draw_context.draw_target.draw_image_with_size_at(
+                            w as f32, h as f32, x as f32, y as f32, img, &DrawOptions::default());
+                    } else {
+                        let mut pb = PathBuilder::new();
+                        pb.rect(x as f32, y as f32, w as f32, h as f32);
+                        let ts = Transform::identity().then_translate(vec2(-x as f32, -y as f32)).inverse().unwrap();
 
-                    let source = Source::Image(*img,
-                                               ExtendMode::Pad,
-                                               FilterMode::Nearest,
-                                               ts);
-                    draw_context.draw_target.fill(&pb.finish(), &source, &DrawOptions::default());
+                        let source = Source::Image(*img,
+                                                   ExtendMode::Pad,
+                                                   FilterMode::Nearest,
+                                                   ts);
+                        draw_context.draw_target.fill(&pb.finish(), &source, &DrawOptions::default());
+                    }
                 } else {
                     draw_context.draw_target.draw_image_at(x as f32, y as f32,img, &DrawOptions::default());
                 }

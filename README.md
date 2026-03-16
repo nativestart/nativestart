@@ -35,7 +35,7 @@ The commands have parameters, which can use arithmetic expressions and variables
 - `progress`: The download progress as value between 0 and 1
 
 Commands:
-- `image <path> <x> <y> [<w> <h>]` Draw image at given position (width and height are optional)
+- `image <path> <x> <y> [<clip_w> <clip_h> [<src_x> <src_y>]]` Draw image at given position (clipping width and height are optional, source coordinates are optional)
 - `textfont <path>` Use the font stored in the given file (TTF, OTF, etc.)
 - `textsize <size>` Use the given font size
 - `textalign <start|left|end|right|center>` Use the given font alignment
