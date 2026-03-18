@@ -14,7 +14,7 @@ use crate::errors::*;
 use crate::descriptor::ApplicationComponent;
 use crate::descriptor::ApplicationDescriptor;
 use walkdir::WalkDir;
-use cluFlock::{FlockLock, SharedFlock};
+use cluFlock::{FlockLock, SharedFlock, ExclusiveFlock};
 use rayon::prelude::IntoParallelIterator;
 use crate::installation_manager::CheckResult::{NotOk, OkLocked};
 
@@ -50,6 +50,17 @@ impl InstallationManager {
             .chain_err(|| ErrorKind::StorageError(format!("Could not create log file {:?}", &path)));
     }
 
+    pub fn is_descriptor_locked(&self) -> Result<bool> {
+        let path = self.path(DESCRIPTOR_FILE_NAME);
+        if !path.exists() {
+           return Ok(false);
+        }
+        match ExclusiveFlock::try_lock(File::open(path)?) {
+            Ok(_) => Ok(false),
+            Err(_) => Ok(true)
+        }
+    }
+
     pub fn store_descriptor(&self, descriptor: &String) -> Result<()> {
         let path = self.path_for_write(DESCRIPTOR_FILE_NAME)?;
         let mut file = File::create(&path)
@@ -57,6 +68,11 @@ impl InstallationManager {
         file.write_all(&descriptor.as_bytes())
             .chain_err(|| ErrorKind::StorageError(format!("Could not write descriptor file {:?}", &path)))?;
         return Ok(());
+    }
+
+    pub fn lock_descriptor(&self) -> Result<FlockLock<File>> {
+        let path = self.path(DESCRIPTOR_FILE_NAME);
+        return Ok(SharedFlock::wait_lock(File::open(path)?).unwrap());
     }
 
     pub fn get_descriptor(&self) -> Option<String> {

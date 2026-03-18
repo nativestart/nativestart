@@ -37,14 +37,22 @@ impl JavaLauncher {
         let download_manager = DownloadManager::new();
 
         debug!("Using application descriptor from {}", application_descriptor_url);
-        let descriptor_content = download_manager.download_and_get(&application_descriptor_url)
-            .or_else(|| installation_manager.get_descriptor())
-            .chain_err(|| ErrorKind::DownloadError("Could not download application descriptor. Internet connection is required for first usage.".to_string()))?;
-
-        installation_manager.store_descriptor(&descriptor_content)?;
-        let descriptor = descriptor::ApplicationDescriptor::parse(&descriptor_content, public_key)?;
-
+        let descriptor_content;
+        if !installation_manager.is_descriptor_locked()? {
+            descriptor_content = download_manager.download_and_get(&application_descriptor_url)
+                .and_then(|content| {
+                    installation_manager.store_descriptor(&content).unwrap();
+                    Some(content)
+                })
+                .or_else(|| installation_manager.get_descriptor())
+                .chain_err(|| ErrorKind::DownloadError("Could not download application descriptor. Internet connection is required for first usage.".to_string()))?;
+        } else {
+            descriptor_content = installation_manager.get_descriptor().unwrap();
+        }
         let mut locked_files: Vec<Vec<FlockLock<File>>> = Vec::new();
+        locked_files.push(vec![installation_manager.lock_descriptor()?]);
+
+        let descriptor = descriptor::ApplicationDescriptor::parse(&descriptor_content, public_key)?;
 
         // download splash screen if required
         match installation_manager.check_component(descriptor.splash.clone()) {
