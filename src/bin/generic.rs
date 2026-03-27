@@ -7,6 +7,12 @@ const OS: &str = "mac";
 #[cfg(target_os = "linux")]
 const OS: &str = "linux";
 
+#[cfg(target_arch = "x86_64")]
+const ARCH: &str = "x86_64";
+
+#[cfg(target_arch = "aarch64")]
+const ARCH: &str = "aarch64";
+
 const APPLICATION_NAME: &str = "APPLICATION_NAME                                                ";
 const APPLICATION_DESCRIPTOR_URL: &str = "APPLICATION_DESCRIPTOR_URL                                                                                                                                                                                                                                      ";
 #[cfg(feature = "check-signature")]
@@ -20,6 +26,7 @@ fn main() {
     let application_descriptor_url = String::from(APPLICATION_DESCRIPTOR_URL)
         .trim()
         .replace("{OS}", OS)
+        .replace("{ARCH}", ARCH)
         .replace("{VERSION}", env!("CARGO_PKG_VERSION"));
 
     #[cfg(feature = "check-signature")]
