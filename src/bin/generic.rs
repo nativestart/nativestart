@@ -19,8 +19,8 @@ fn main() {
     let application_name = APPLICATION_NAME.trim_end();
     let application_descriptor_url = String::from(APPLICATION_DESCRIPTOR_URL)
         .trim()
-        .replace("${OS}", OS)
-        .replace("${VERSION}", env!("CARGO_PKG_VERSION"));
+        .replace("{OS}", OS)
+        .replace("{VERSION}", env!("CARGO_PKG_VERSION"));
 
     #[cfg(feature = "check-signature")]
     nativestart::start(application_name, application_descriptor_url, APPLICATION_PUBLIC_KEY);
