@@ -44,7 +44,8 @@ impl JvmStarter {
             let main_class_name = descriptor.main_class.clone();
             thread::spawn(move || {
                 let jvm = JNI_GetCreatedJavaVMs_first().unwrap().unwrap();
-                jvm.AttachCurrentThread_str(JNI_VERSION_1_8, "await UI", null_mut()).expect("Could not attach thread");
+                jvm.AttachCurrentThreadAsDaemon_str(JNI_VERSION_1_8, "await UI", null_mut())
+                    .expect("Could not attach thread");
                 let env = jvm.GetEnv::<jni_simple::JNIEnv>(JNI_VERSION_1_8).unwrap();
                 let main_class = env.FindClass(main_class_name.as_str());
                 let await_ui_method = env.GetStaticMethodID(main_class, "awaitUI", "()V");
@@ -62,7 +63,13 @@ impl JvmStarter {
             info!("Starting JVM took {} ms", elapsed.as_millis());
             env.CallStaticVoidMethod1(main_class, main_method, main_method_string_parameter_array);
 
-            jvm.DestroyJavaVM();
+            let exception_occurred = env.ExceptionCheck();
+            if exception_occurred {
+                env.ExceptionDescribe();
+            } else {
+                // no exception -> shutdown properly
+                jvm.DestroyJavaVM();
+            }
         }
 
         ui.application_terminated();
