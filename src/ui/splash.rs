@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fs::File;
 
+#[cfg(not(target_os = "macos"))]
 use winit::event_loop::EventLoop;
 use image::{DynamicImage};
 
@@ -244,17 +245,17 @@ impl Splash {
 
     #[cfg(target_os = "macos")]
     fn get_screen_size() -> (i32, i32, f64, f64, String) {
-        use winit::dpi::LogicalSize;
+        // Use CoreGraphics directly instead of winit to avoid registering
+        // stale run loop observers that crash when NSApp().run() is called later.
+        use core_graphics::display::CGDisplay;
 
-        let events_loop = EventLoop::new();
-        let monitor = events_loop.primary_monitor().unwrap();
-        let factor = monitor.scale_factor();
+        let main_display = CGDisplay::main();
+        let mode = main_display.display_mode().expect("failed to get display mode");
+        let bounds = main_display.bounds();
 
-        // Dimensions returned by winit are converted to physical size,
-        // therefore we need to convert them back to logical size
-        let dimensions: LogicalSize<i32> = monitor.size().to_logical(factor);
-        let width = dimensions.width;
-        let height = dimensions.height;
+        let width = bounds.size.width as i32;
+        let height = bounds.size.height as i32;
+        let factor = mode.pixel_width() as f64 / bounds.size.width;
 
         let (factor, dpi) = Splash::map_scale(factor);
 

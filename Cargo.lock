@@ -1582,6 +1582,7 @@ dependencies = [
  "cluFlock",
  "cocoa 0.18.5",
  "core-foundation 0.6.4",
+ "core-graphics 0.23.2",
  "dirs",
  "dispatch 0.2.0 (git+https://github.com/jgh-/rust-dispatch?branch=master)",
  "error-chain",
