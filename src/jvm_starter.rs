@@ -34,10 +34,10 @@ impl JvmStarter {
 
             let string_class = env.FindClass("java/lang/String");
             let args: Vec<String> = env::args().collect();
-            let main_method_string_parameter_array = env.NewObjectArray(args.len() as i32, string_class, null_mut());
-            for i in 0..args.len() {
+            let main_method_string_parameter_array = env.NewObjectArray((args.len() - 1) as i32, string_class, null_mut());
+            for i in 1..args.len() {
                 let argument = env.NewStringUTF(args[i].as_str());
-                env.SetObjectArrayElement(main_method_string_parameter_array, i as i32, argument);
+                env.SetObjectArrayElement(main_method_string_parameter_array, (i - 1) as i32, argument);
             }
 
             let ui_clone = ui.clone();
