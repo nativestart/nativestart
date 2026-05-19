@@ -1,7 +1,7 @@
 use log::*;
 use std::env;
 use std::path::PathBuf;
-use std::ptr::{eq, null_mut};
+use std::ptr::null_mut;
 use std::thread;
 use std::time::Instant;
 use crate::descriptor::JvmParameters;
@@ -46,10 +46,10 @@ impl JvmStarter {
                 let jvm = JNI_GetCreatedJavaVMs_first().unwrap().unwrap();
                 jvm.AttachCurrentThreadAsDaemon_str(JNI_VERSION_1_8, "await UI", null_mut())
                     .expect("Could not attach thread");
-                let env = jvm.GetEnv::<jni_simple::JNIEnv>(JNI_VERSION_1_8).unwrap();
+                let env = jvm.GetEnv::<JNIEnv>(JNI_VERSION_1_8).unwrap();
                 let main_class = env.FindClass(main_class_name.as_str());
                 let await_ui_method = env.GetStaticMethodID(main_class, "awaitUI", "()V");
-                if !eq(await_ui_method, null_mut()) {
+                if !await_ui_method.is_null() {
                     debug!("awaitUI() found in Java application. Calling it to determine when to hide splash screen");
                     env.CallStaticVoidMethod0(main_class, await_ui_method);
                 } else {
