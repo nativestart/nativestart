@@ -16,7 +16,7 @@ use minifb::{Scale, Window, WindowOptions};
 use raqote::{DrawOptions, DrawTarget, Image, PathBuilder, Point, SolidSource, Source, Transform, ExtendMode, FilterMode};
 use font_kit::loaders::default::Font;
 use euclid::vec2;
-
+use sys_locale::get_locale;
 use crate::errors::*;
 use crate::ui::{Message, MAX_DOWNLOAD_PROGRESS};
 
@@ -96,6 +96,8 @@ impl Splash {
         let mut placeholders = HashMap::new();
         placeholders.insert(String::from("dpi"), dpi);
         placeholders.insert(String::from("version"), String::from(&self.version));
+        let locale = get_locale().unwrap_or_else(|| String::from(""));
+        placeholders.insert(String::from("locale"), locale);
 
         let mut draw_context = DrawContext {
             scale: img_scale,
@@ -360,26 +362,31 @@ impl Splash {
                 let src_y = draw_context.eval_num(src_y) * draw_context.scale;
 
                 if !draw_context.images.contains_key(path.as_str()) {
-                    let mut path_buffer = draw_context.basedir.clone();
-                    path_buffer.push(path.as_str());
-                    let img = image::open(path_buffer).unwrap();
-                    let img = match img {
-                        DynamicImage::ImageRgba8(img) => img,
-                        img => img.to_rgba8()
-                    };
-                    let width = img.dimensions().0;
-                    let height = img.dimensions().1;
-                    let mut buf: Vec<u32> = vec![0; (width * height) as usize];
-                    let mut i = 0;
-                    for p in img.pixels() {
-                        let alpha = p.0[3] as u32;
-                        let r = (p.0[0] as u32 * alpha) >> 8;
-                        let g = (p.0[1] as u32 * alpha) >> 8;
-                        let b = (p.0[2] as u32 * alpha) >> 8;
-                        buf[i] = alpha << 24 | r << 16 | g << 8 | b;
-                        i = i + 1;
+                    for alternative in path.split(":") {
+                        let mut path_buffer = draw_context.basedir.clone();
+                        path_buffer.push(alternative);
+                        if !path_buffer.exists() {
+                            continue;
+                        }
+                        let img = image::open(path_buffer).unwrap();
+                        let img = match img {
+                            DynamicImage::ImageRgba8(img) => img,
+                            img => img.to_rgba8()
+                        };
+                        let width = img.dimensions().0;
+                        let height = img.dimensions().1;
+                        let mut buf: Vec<u32> = vec![0; (width * height) as usize];
+                        let mut i = 0;
+                        for p in img.pixels() {
+                            let alpha = p.0[3] as u32;
+                            let r = (p.0[0] as u32 * alpha) >> 8;
+                            let g = (p.0[1] as u32 * alpha) >> 8;
+                            let b = (p.0[2] as u32 * alpha) >> 8;
+                            buf[i] = alpha << 24 | r << 16 | g << 8 | b;
+                            i = i + 1;
+                        }
+                        draw_context.images.insert(path.clone(), (width, height, buf));
                     }
-                    draw_context.images.insert(path.clone(), (width, height, buf));
                 }
 
                 let value = draw_context.images.get(path.as_str()).unwrap();

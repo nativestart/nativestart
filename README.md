@@ -32,10 +32,11 @@ The commands have parameters, which can use arithmetic expressions and variables
   - contains `hdpi` if screen zoom factor is between 1.25 and 1.75 (exclusive). Coordinates get multiplied by 1.5
   - contains `xhdpi` if screen zoom factor is grater than 1.75. Coordinates get multiplied by 2.0
 - `version`: The version of the application as defined in the TOML descriptor
+- `locale`: The current locale as BCP 47 code (e.g. 'en-US')
 - `progress`: The download progress as value between 0 and 1
 
 Commands:
-- `image <path> <x> <y> [<clip_w> <clip_h> [<src_x> <src_y>]]` Draw image at given position (clipping width and height are optional, source coordinates are optional)
+- `image <path>[:<fallback_path>] <x> <y> [<clip_w> <clip_h> [<src_x> <src_y>]]` Draw image at given position (clipping width and height are optional, source coordinates are optional)
 - `textfont <path>` Use the font stored in the given file (TTF, OTF, etc.)
 - `textsize <size>` Use the given font size
 - `textalign <start|left|end|right|center>` Use the given font alignment
@@ -47,7 +48,7 @@ Example:
 splash 512 300
 
 [background]
-image splash_${dpi}.png 0 0
+image splash_${locale}_${dpi}.png:splash_${dpi}.png 0 0
 textfont myfont-min.ttf
 textsize 18
 fill 0 0 0

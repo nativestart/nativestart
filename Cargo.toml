@@ -41,6 +41,7 @@ font-kit = "0.14.2"
 euclid = "0.22.9"
 meval = "0.2.0"
 send_wrapper = "0.6.0"
+sys-locale = "0.3.2"
 
 # JVM
 jni-simple = { version = "0.3.2", features = ["loadjvm"] }
