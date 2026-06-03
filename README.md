@@ -13,6 +13,7 @@ Distribute your JVM desktop app by providing a small executable that will downlo
 - DSL for splash screens
 - BLAKE-3 digests to detect modifications on installed files or pending updates
 - Optional Ed25519 key integrated in executable. Only correctly signed application descriptors will be started.
+- Optional recompression of JAR files for smaller download size (ZSTD compressed JAR containing uncompressed entries)
 
 ### Splash DSL
 
@@ -71,5 +72,6 @@ This repository...
 
 ### How to build
 - Build generic executable to be customized by nativestart-packer
-  - for unsigned applications: `cargo build --release --bin generic`  
-  - for signed applications: `cargo build --release --bin generic --features check-signature`  
+  - for unsigned applications: `cargo build --release --bin checksum`
+  - for signed applications: `cargo build --release --bin generic --features check-signature`
+- Build utility for nativestart-packer to calculate checksum for recompressed JAR files

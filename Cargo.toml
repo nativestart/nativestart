@@ -1,6 +1,6 @@
 [package]
 name = "nativestart"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Jonas Bamberger <jonas.bamberger@gmail.com>", "Stefan Wismer <stefan@wismer.xyz>"]
 edition = "2021"
 
@@ -30,6 +30,8 @@ zstd = "0.13"
 cluFlock = "1.2.7"
 rayon = "1.11"
 blake3 = "1.4.1"
+binrw = "0.15.1"
+flate2 = "1.1.9"
 
 
 # UI

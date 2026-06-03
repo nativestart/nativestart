@@ -4,15 +4,15 @@ use std::fs::File;
 use log::*;
 use progress_streams::ProgressReader;
 use std::io;
-use std::io::{Read, Write};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use tar::Archive;
 
-use crate::errors::*;
 use crate::descriptor::ApplicationComponent;
-use crate::UserInterface;
+use crate::errors::*;
 use crate::installation_manager::InstallationManager;
+use crate::recompress::recompress;
+use crate::UserInterface;
 
 pub struct DownloadManager {}
 
@@ -41,21 +41,21 @@ impl DownloadManager {
 
             debug!("Downloading {} to {:?}", component.url, path);
 
+            // prepare HTTP client
+            let res = attohttpc::get(&component.url).send()
+                .chain_err(|| ErrorKind::DownloadError(format!("Could not download file {:?}", &component.url)))?;
+
+            // decorate reader with progress tracking
+            let file_progress = Arc::new(AtomicUsize::new(0));
+            let mut reader = ProgressReader::new(res, |progress: usize| {
+                file_progress.fetch_add(progress, Ordering::SeqCst);
+                ui.set_download_progress((downloaded + file_progress.load(Ordering::SeqCst) as u64) as f64 / total_size as f64);
+            });
+
             if component.is_archive() {
                 // create empty directory
                 fs::create_dir_all(&path)
                     .chain_err(|| ErrorKind::StorageError(format!("Could not create directory {:?}", &path)))?;
-
-                // prepare HTTP client
-                let res = attohttpc::get(&component.url).send()
-                    .chain_err(|| ErrorKind::DownloadError(format!("Could not download file {:?}", &component.url)))?;
-
-                // decorate reader with progress tracking
-                let file_progress = Arc::new(AtomicUsize::new(0));
-                let reader = ProgressReader::new(res, |progress: usize| {
-                    file_progress.fetch_add(progress, Ordering::SeqCst);
-                    ui.set_download_progress((downloaded + file_progress.load(Ordering::SeqCst) as u64) as f64 / total_size as f64);
-                });
 
                 // extract data stream to target location
                 let stream = zstd::Decoder::new(reader)?;
@@ -65,14 +65,16 @@ impl DownloadManager {
             } else {
                 // create parent directories if needed
                 path.parent().and_then(|parent| fs::create_dir_all(parent).ok());
-
-                // download to correct location
                 let mut file = File::create(&path)
                     .chain_err(|| ErrorKind::StorageError(format!("Could not create file {:?}", &path)))?;
 
-                let mut res = attohttpc::get(&component.url).send()
-                    .chain_err(|| ErrorKind::DownloadError(format!("Could not download file {:?}", &component.url)))?;
-                self.download(&mut res, &mut file, ui, downloaded, total_size)?;
+                // special handling for zstd-compressed JAR files
+                if component.url.ends_with(".jar.zstd") && path.to_str().unwrap().ends_with(".jar") {
+                    let mut stream = zstd::Decoder::new(reader)?;
+                    recompress(&mut stream, &mut file).unwrap();
+                } else {
+                    io::copy(&mut reader, &mut file).chain_err(|| ErrorKind::DownloadError(format!("Error during download")))?;
+                }
             }
 
             // re-create cache directory if there is one
@@ -86,16 +88,6 @@ impl DownloadManager {
         }
 
         ui.download_done();
-        return Ok(());
-    }
-
-    fn download(&self, reader: &mut dyn Read, writer: &mut dyn Write, ui: &UserInterface, downloaded: u64, total_size: u64) -> Result<()> {
-        let file_progress = Arc::new(AtomicUsize::new(0));
-        let mut reader = ProgressReader::new(reader, |progress: usize| {
-            file_progress.fetch_add(progress, Ordering::SeqCst);
-            ui.set_download_progress((downloaded + file_progress.load(Ordering::SeqCst) as u64) as f64 / total_size as f64);
-        });
-        io::copy(&mut reader, writer).chain_err(|| ErrorKind::DownloadError(format!("Error during download")))?;
         return Ok(());
     }
 }

@@ -38,25 +38,30 @@ jobs:
           - stable
         feature:
           - name: signed
-            description: with signature support
+            description: launcher with signature support
+            bin: generic
             cmd: --features check-signature
           - name: unsigned
-            description: without signature support
+            description: launcher without signature support
+            bin: generic
+          - name: checksum
+            description: checksum utility
+            bin: checksum
     steps:
       - uses: actions/checkout@v3
       - name: Install dependencies
         run: ${{ matrix.platform.dependencies }}
         if: matrix.platform.dependencies != null
-      - name: Build binary ${{ matrix.feature.description }}
+      - name: Build ${{ matrix.feature.description }}
         uses: houseabsolute/actions-rust-cross@v0
         with:
           command: "build"
           target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.toolchain }}
-          args: "--locked --release --bin generic ${{ matrix.feature.cmd }}"
+          args: "--locked --release --bin ${{ matrix.feature.bin }} ${{ matrix.feature.cmd }}"
           strip: true
       - name: Rename binary
-        run: mv target/${{ matrix.platform.target }}/release/generic${{ matrix.platform.extension }} target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}-${{ matrix.feature.name }}${{ matrix.platform.extension }}
+        run: mv target/${{ matrix.platform.target }}/release/${{ matrix.feature.bin }}${{ matrix.platform.extension }} target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}-${{ matrix.feature.name }}${{ matrix.platform.extension }}
       - name: Release binary to GitHub
         uses: softprops/action-gh-release@v1
         with:
