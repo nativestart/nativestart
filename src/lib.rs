@@ -23,6 +23,7 @@ mod descriptor;
 mod download_manager;
 mod installation_manager;
 mod jvm_starter;
+pub mod recompress;
 
 #[cfg(not(feature = "check-signature"))]
 pub fn start(application_name: &'static str, application_descriptor_url: String) {
