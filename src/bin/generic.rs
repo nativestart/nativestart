@@ -1,5 +1,7 @@
 #![windows_subsystem = "windows"]
 
+use std::env;
+
 #[cfg(target_os = "windows")]
 const OS: &str = "windows";
 #[cfg(target_os = "macos")]
@@ -23,17 +25,45 @@ fn main() {
     attach_parent_console();
 
     let application_name = APPLICATION_NAME.trim_end();
-    let application_descriptor_url = String::from(APPLICATION_DESCRIPTOR_URL)
-        .trim()
-        .replace("{OS}", OS)
-        .replace("{ARCH}", ARCH)
-        .replace("{VERSION}", env!("CARGO_PKG_VERSION"));
+    let application_descriptor_url = resolve_url();
 
     #[cfg(feature = "check-signature")]
     nativestart::start(application_name, application_descriptor_url, APPLICATION_PUBLIC_KEY);
 
     #[cfg(not(feature = "check-signature"))]
     nativestart::start(application_name, application_descriptor_url);
+}
+
+fn resolve_url() -> String {
+    let mut in_placeholder = false;
+    let mut placeholder = String::new();
+    let mut url = String::new();
+
+    for c in APPLICATION_DESCRIPTOR_URL.trim().chars() {
+        if c == '{' {
+            in_placeholder = true;
+        } else if c == '}' {
+            if placeholder == "OS" {
+                url.push_str(&OS)
+            } else if placeholder == "ARCH" {
+                url.push_str(&ARCH)
+            } else if placeholder == "VERSION" {
+                url.push_str(env!("CARGO_PKG_VERSION"))
+            } else if placeholder.starts_with("env.") {
+                match env::var(&placeholder[4..]) {
+                    Ok(var) => url.push_str(&var),
+                    Err(_) => ()
+                }
+            }
+            placeholder.truncate(0);
+            in_placeholder = false;
+        } else if in_placeholder {
+            placeholder.push(c);
+        } else {
+            url.push(c);
+        }
+    }
+    url
 }
 
 #[cfg(target_os="windows")]
