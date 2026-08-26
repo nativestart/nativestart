@@ -18,7 +18,7 @@ const ARCH: &str = "aarch64";
 const APPLICATION_NAME: &str = "APPLICATION_NAME                                                ";
 const APPLICATION_DESCRIPTOR_URL: &str = "APPLICATION_DESCRIPTOR_URL                                                                                                                                                                                                                                      ";
 #[cfg(feature = "check-signature")]
-const APPLICATION_PUBLIC_KEY: [u8; 32] = [b'$', b'R', b'E', b'P', b'L', b'A', b'C', b'E', b'_', b'A', b'P', b'P', b'L', b'I', b'C', b'A', b'T', b'I', b'O', b'N', b'_', b'P', b'U', b'B', b'L', b'I', b'C', b'_', b'K', b'E', b'Y', b'$'];
+const APPLICATION_PUBLIC_KEY: &str = "$REPLACE_APPLICATION_PUBLIC_KEY$";
 
 fn main() {
     #[cfg(target_os="windows")]
@@ -28,7 +28,7 @@ fn main() {
     let application_descriptor_url = resolve_url();
 
     #[cfg(feature = "check-signature")]
-    nativestart::start(application_name, application_descriptor_url, APPLICATION_PUBLIC_KEY);
+    nativestart::start(application_name, application_descriptor_url, APPLICATION_PUBLIC_KEY.as_bytes().try_into().unwrap());
 
     #[cfg(not(feature = "check-signature"))]
     nativestart::start(application_name, application_descriptor_url);
