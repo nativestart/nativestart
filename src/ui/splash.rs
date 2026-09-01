@@ -397,20 +397,15 @@ impl Splash {
                 };
 
                 if w > 0.0 && h > 0.0 {
-                    if src_x == 0.0 && src_y == 0.0 {
-                        draw_context.draw_target.draw_image_with_size_at(
-                            w as f32, h as f32, x as f32, y as f32, img, &DrawOptions::default());
-                    } else {
-                        let mut pb = PathBuilder::new();
-                        pb.rect(x as f32, y as f32, w as f32, h as f32);
-                        let ts = Transform::identity().then_translate(vec2(-x as f32, -y as f32)).inverse().unwrap();
+                    let mut pb = PathBuilder::new();
+                    pb.rect(x as f32, y as f32, w as f32, h as f32);
+                    let ts = Transform::identity().then_translate(vec2((src_x - x) as f32, (src_y - y) as f32));
 
-                        let source = Source::Image(*img,
-                                                   ExtendMode::Pad,
-                                                   FilterMode::Nearest,
-                                                   ts);
-                        draw_context.draw_target.fill(&pb.finish(), &source, &DrawOptions::default());
-                    }
+                    let source = Source::Image(*img,
+                                               ExtendMode::Pad,
+                                               FilterMode::Nearest,
+                                               ts);
+                    draw_context.draw_target.fill(&pb.finish(), &source, &DrawOptions::default());
                 } else {
                     draw_context.draw_target.draw_image_at(x as f32, y as f32,img, &DrawOptions::default());
                 }
